@@ -257,13 +257,26 @@ void ExchangeCalc()
         getline(ip, instrument, ',');
         getline(ip, sSide, ',');
         getline(ip, sQuantity, ',');
-        getline(ip, sPrice, ',');
+        getline(ip, sPrice, '\n');
 
-        int side = stoi(sSide);
-        int quantity = stoi(sQuantity);
-        double price = stod(sPrice);
+        int side = 0;
+        int quantity = 0;
+        double price = 0.0;
+        try
+        {
+            side = stoi(sSide);
+            quantity = stoi(sQuantity);
+            price = stod(sPrice);
+        }
+        catch (const std::invalid_argument &e)
+        {
+            std::cerr << "Invalid price value: " << sPrice << std::endl;
+            // Handle the error, such as skipping the current line or exiting the function
+            continue; // Skip to the next iteration
+        }
 
         string orderID = "ord" + to_string(orderCount);
+        orderCount++;
 
         if (side == 1)
         {
@@ -271,9 +284,9 @@ void ExchangeCalc()
 
             ClientDetails *temp = seller.search(instrument, price);
 
-            while (buyer.search(instrument, price)->quantity > 0)
+            while (temp != nullptr && buyer.search(instrument, price)->quantity > 0)
             {
-                if (instrument == temp->instrument && quantity == temp->quantity && price >= temp->price)
+                if (temp != nullptr && instrument == temp->instrument && quantity == temp->quantity && price >= temp->price)
                 {
                     ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Fill", quantity, price);
                     ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Fill", quantity, price);
@@ -287,7 +300,7 @@ void ExchangeCalc()
                     cout << "Buyer and seller orders filled completely." << endl;
                 }
                 // Check if the top buyer's quantity is less than the seller's quantity
-                else if (instrument == temp->instrument && quantity < temp->quantity && price >= temp->price)
+                else if (temp != nullptr && instrument == temp->instrument && quantity < temp->quantity && price >= temp->price)
                 {
                     ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Fill", quantity, price);
                     ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Pfill", quantity, price);
@@ -300,7 +313,7 @@ void ExchangeCalc()
 
                     cout << "Buyer order partially filled." << endl;
                 }
-                else if (instrument == temp->instrument && quantity > temp->quantity && price >= temp->price)
+                else if (temp != nullptr && instrument == temp->instrument && quantity > temp->quantity && price >= temp->price)
                 {
                     ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Pfill", quantity, price);
                     ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Fill", quantity, price);
@@ -324,54 +337,59 @@ void ExchangeCalc()
 
             ClientDetails *temp = buyer.search(instrument, price);
 
-            // while (seller.search(instrument, price)->quantity > 0)
-            // {
-            //     if (instrument == temp->instrument && quantity == temp->quantity && price <= temp->price)
-            //     {
-            //         ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Fill", quantity, price);
-            //         ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Fill", quantity, price);
+            while (temp != nullptr && seller.search(instrument, price)->quantity > 0)
+            {
+                if (temp != nullptr && instrument == temp->instrument && quantity == temp->quantity && price <= temp->price)
+                {
+                    ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Fill", quantity, price);
+                    ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Fill", quantity, price);
 
-            //         addToExecutionRepDetailsLinkedList(head, sellerExecution);
-            //         addToExecutionRepDetailsLinkedList(head, buyerExecution);
+                    addToExecutionRepDetailsLinkedList(head, sellerExecution);
+                    addToExecutionRepDetailsLinkedList(head, buyerExecution);
 
-            //         buyer.pop();
-            //         seller.remove(temp->clientOrderID, temp->instrument, temp->quantity && price <= temp->price);
+                    buyer.pop();
+                    seller.remove(temp->clientOrderID, temp->instrument, temp->quantity && price <= temp->price);
 
-            //         cout << "Buyer and seller orders filled completely." << endl;
-            //     }
-            //     // Check if the top buyer's quantity is less than the seller's quantity
-            //     else if (instrument == temp->instrument && quantity < temp->quantity && price <= temp->price)
-            //     {
-            //         ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Fill", quantity, price);
-            //         ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Pfill", quantity, price);
+                    cout << "Buyer and seller orders filled completely." << endl;
+                }
+                // Check if the top buyer's quantity is less than the seller's quantity
+                else if (temp != nullptr && instrument == temp->instrument && quantity < temp->quantity && price <= temp->price)
+                {
+                    ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Fill", quantity, price);
+                    ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Pfill", quantity, price);
 
-            //         addToExecutionRepDetailsLinkedList(head, sellerExecution);
-            //         addToExecutionRepDetailsLinkedList(head, buyerExecution);
+                    addToExecutionRepDetailsLinkedList(head, sellerExecution);
+                    addToExecutionRepDetailsLinkedList(head, buyerExecution);
 
-            //         temp->quantity -= quantity;
-            //         buyer.pop();
+                    temp->quantity -= quantity;
+                    buyer.pop();
 
-            //         cout << "Seller order partially filled." << endl;
-            //     }
-            //     else if (instrument == temp->instrument && quantity > temp->quantity)
-            //     {
-            //         ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Pfill", quantity, price);
-            //         ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Fill", quantity, price);
+                    cout << "Seller order partially filled." << endl;
+                }
+                else if (temp != nullptr && instrument == temp->instrument && quantity > temp->quantity)
+                {
+                    ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "Pfill", quantity, price);
+                    ExecutionRepDetails *buyerExecution = new ExecutionRepDetails(temp->orderID, temp->clientOrderID, instrument, temp->side, "Fill", quantity, price);
 
-            //         seller.remove(temp->clientOrderID, temp->instrument, temp->quantity);
-            //         buyer.search(instrument, price)->quantity -= temp->quantity;
+                    seller.remove(temp->clientOrderID, temp->instrument, temp->quantity);
+                    buyer.search(instrument, price)->quantity -= temp->quantity;
 
-            //         addToExecutionRepDetailsLinkedList(head, sellerExecution);
-            //         addToExecutionRepDetailsLinkedList(head, buyerExecution);
-            //     }
-            //     else
-            //     {
-            //         ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "New", quantity, price);
-            //         addToExecutionRepDetailsLinkedList(head, sellerExecution);
-            //     }
-            // }
+                    addToExecutionRepDetailsLinkedList(head, sellerExecution);
+                    addToExecutionRepDetailsLinkedList(head, buyerExecution);
+                }
+                else
+                {
+                    ExecutionRepDetails *sellerExecution = new ExecutionRepDetails(orderID, clientOrderID, instrument, side, "New", quantity, price);
+                    addToExecutionRepDetailsLinkedList(head, sellerExecution);
+                }
+            }
         }
     }
+
+    string fileName = "execution_rep.csv";
+    writeToCSV(fileName, head);
+
+    freeLinkedList(head);
 
     buyer.printStack();
     seller.printStack();
@@ -382,11 +400,6 @@ int main()
 {
 
     ExchangeCalc();
-
-    string fileName = "execution_rep.csv";
-    // writeToCSV(fileName, head);
-
-    // freeLinkedList(head);
 
     return 0;
 }
